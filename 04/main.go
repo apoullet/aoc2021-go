@@ -4,98 +4,112 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-    "strconv"
-    "strings"
+	"strconv"
+	"strings"
 )
 
-type bingoBoards struct {
-    actual [][25]int
-    backing [][]int
-}
-
 type bingoBoard struct {
-    actual [25]int
-    backing []int
+	actual  [25]int
+	backing []int
 }
 
-func (boards *bingoBoards) AddBoard(board [25]int) {
-    (*boards).actual = append(boards.actual, board)
+func getMax(board [25]int) int {
+	currentMax := -1
 
-    maxVal := getMaxVal(board)
-    backingBoard := make([]int, maxVal+1)
+	for _, val := range board {
+		if currentMax < val {
+			currentMax = val
+		}
+	}
 
-    for i := range(backingBoard) {
-        backingBoard[i] = -1
-    }
-
-    for _, val := range(board) {
-        backingBoard[val] = 0
-    }
-
-    (*boards).backing = append(boards.backing, backingBoard)
+	return currentMax
 }
 
-func (boards bingoBoards) IsWinning() (bool, bingoBoard) {
-    for index, currentBoard := range boards.actual {
-        backingBoard := boards.backing[index]
+func addBoard(boards []bingoBoard, actualBoard [25]int) []bingoBoard {
+	max := getMax(actualBoard)
+	backingBoard := make([]int, max+1)
 
-        // First Column
-        if backingBoard[currentBoard[0]] + backingBoard[currentBoard[5]] + backingBoard[currentBoard[10]] + backingBoard[currentBoard[15]] + backingBoard[currentBoard[20]] == 5 {
-            return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Second Column
-        if backingBoard[currentBoard[1]] + backingBoard[currentBoard[6]] + backingBoard[currentBoard[11]] + backingBoard[currentBoard[16]] + backingBoard[currentBoard[21]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Third Column
-        if backingBoard[currentBoard[2]] + backingBoard[currentBoard[7]] + backingBoard[currentBoard[12]] + backingBoard[currentBoard[17]] + backingBoard[currentBoard[22]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Fourth Column
-        if backingBoard[currentBoard[3]] + backingBoard[currentBoard[8]] + backingBoard[currentBoard[13]] + backingBoard[currentBoard[18]] + backingBoard[currentBoard[23]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Fifth Column
-        if backingBoard[currentBoard[4]] + backingBoard[currentBoard[9]] + backingBoard[currentBoard[14]] + backingBoard[currentBoard[19]] + backingBoard[currentBoard[24]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // First Row
-        if backingBoard[currentBoard[0]] + backingBoard[currentBoard[1]] + backingBoard[currentBoard[2]] + backingBoard[currentBoard[3]] + backingBoard[currentBoard[4]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Second Row
-        if backingBoard[currentBoard[5]] + backingBoard[currentBoard[6]] + backingBoard[currentBoard[7]] + backingBoard[currentBoard[8]] + backingBoard[currentBoard[9]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Third Row
-        if backingBoard[currentBoard[10]] + backingBoard[currentBoard[11]] + backingBoard[currentBoard[12]] + backingBoard[currentBoard[13]] + backingBoard[currentBoard[14]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Fourth Row
-        if backingBoard[currentBoard[15]] + backingBoard[currentBoard[16]] + backingBoard[currentBoard[17]] + backingBoard[currentBoard[18]] + backingBoard[currentBoard[19]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-        // Fifth Row
-        if backingBoard[currentBoard[20]] + backingBoard[currentBoard[21]] + backingBoard[currentBoard[22]] + backingBoard[currentBoard[23]] + backingBoard[currentBoard[24]] == 5 {
-               return true, bingoBoard{actual: currentBoard, backing: boards.backing[index]}
-        }
-    }
+	for i := range backingBoard {
+		backingBoard[i] = -1
+	}
 
-    return false, bingoBoard{actual: [25]int{}, backing: []int{}}
+	for _, val := range actualBoard {
+		backingBoard[val] = 0
+	}
+
+	board := bingoBoard{actual: actualBoard, backing: backingBoard}
+	return append(boards, board)
 }
 
-func (boards *bingoBoards) markBoards(value int) {
-    for _, board := range boards.backing {
-        if len(board) <= value {
-            continue
-        }
+func removeEmptyVals(numbers []string) []string {
+	sanitised := []string{}
 
-        board[value] = 1
-    }
+	for _, val := range numbers {
+		if val != "" {
+			sanitised = append(sanitised, val)
+		}
+	}
+
+	return sanitised
 }
 
-func main() {
-	fmt.Println(part1())
+func loadBoards(scanner *bufio.Scanner) []bingoBoard {
+	boards := []bingoBoard{}
+
+	currentBoard := [25]int{}
+	var rowIndex int
+
+	for scanner.Scan() {
+		currentLine := scanner.Text()
+
+		if currentLine == "" {
+			boards = addBoard(boards, currentBoard)
+			currentBoard = [25]int{}
+			rowIndex = 0
+			continue
+		}
+
+		numbers := removeEmptyVals(strings.Split(currentLine, " "))
+
+		for i := 0; i < 5; i++ {
+			value, _ := strconv.Atoi(numbers[i])
+			currentBoard[i+rowIndex*5] = value
+		}
+
+		rowIndex++
+	}
+
+	boards = addBoard(boards, currentBoard)
+	return boards
+}
+
+func checkColumn(board bingoBoard, startIndex int) bool {
+	isSet := func(index int) int {
+		return board.backing[board.actual[index]]
+	}
+
+	return isSet(startIndex)+isSet(startIndex+5)+isSet(startIndex+10)+isSet(startIndex+15)+isSet(startIndex+20) == 5
+}
+
+func checkRow(board bingoBoard, startIndex int) bool {
+	isSet := func(index int) int {
+		return board.backing[board.actual[index]]
+	}
+
+	return isSet(startIndex)+isSet(startIndex+1)+isSet(startIndex+2)+isSet(startIndex+3)+isSet(startIndex+4) == 5
+}
+
+func isWinning(board bingoBoard) bool {
+	return checkColumn(board, 0) || checkColumn(board, 1) || checkColumn(board, 2) || checkColumn(board, 3) || checkColumn(board, 4) ||
+		checkRow(board, 0) || checkRow(board, 5) || checkRow(board, 10) || checkRow(board, 15) || checkRow(board, 20)
+}
+
+func markBoards(boards []bingoBoard, value int) {
+	for _, board := range boards {
+		if len(board.backing) > value {
+			board.backing[value] = 1
+		}
+	}
 }
 
 func part1() int {
@@ -106,86 +120,36 @@ func part1() int {
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
 
-    scanner.Scan()
+	scanner.Scan()
 
-    drawnNumbers := removeEmptyVals(strings.Split(scanner.Text(), ","))
+	drawnNumbers := removeEmptyVals(strings.Split(scanner.Text(), ","))
 
-    scanner.Scan()
+	scanner.Scan()
 
-    boards := loadBoards(scanner)
+	boards := loadBoards(scanner)
 
-    for _, number := range drawnNumbers {
-        value, _ := strconv.Atoi(number)
-        boards.markBoards(value)
+	for _, number := range drawnNumbers {
+		value, _ := strconv.Atoi(number)
+		markBoards(boards, value)
 
-        isWinning, board := boards.IsWinning()
+		for _, board := range boards {
+			if isWinning(board) {
+				unmarkedNumbersSum := 0
 
-        if isWinning {
-            unmarkedNumbersSum := 0
+				for _, val := range board.actual {
+					if board.backing[val] == 0 {
+						unmarkedNumbersSum += val
+					}
+				}
 
-            for _, val := range board.actual {
-                if board.backing[val] == 0 {
-                    unmarkedNumbersSum += val
-                }
-            }
-
-            return unmarkedNumbersSum * value
-        }
-    }
-
-    return -1
-}
-
-func loadBoards(scanner *bufio.Scanner) bingoBoards {
-    boards := bingoBoards{actual: [][25]int{}, backing: [][]int{}} 
-
-    currentBoard := [25]int{}
-    var rowIndex int
-
-	for scanner.Scan() {
-        currentLine := scanner.Text()
-        
-        if currentLine == "" {
-            boards.AddBoard(currentBoard)
-            currentBoard = [25]int{}
-            rowIndex = 0
-            continue
-        }
-
-        numbers := removeEmptyVals(strings.Split(currentLine, " "))
-
-        for i := 0; i < 5; i++ {
-            value, _ := strconv.Atoi(numbers[i])
-            currentBoard[i + rowIndex * 5] = value
-        }
-
-        rowIndex++
+				return unmarkedNumbersSum * value
+			}
+		}
 	}
 
-    boards.AddBoard(currentBoard)
-    return boards
+	return -1
 }
 
-func getMaxVal(board [25]int) int {
-    currentMax := -1
-
-    for _, val := range board {
-        if currentMax < val {
-            currentMax = val
-        }
-    }
-
-    return currentMax
-}
-
-func removeEmptyVals(numbers []string) []string {
-    sanitised := []string{}
-
-    for _, val := range numbers {
-        if val != "" {
-            sanitised = append(sanitised, val)
-        }
-    }
-    
-    return sanitised
+func main() {
+	fmt.Println(part1())
 }
